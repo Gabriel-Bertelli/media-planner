@@ -1,13 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-
-import { createClient } from '@supabase/supabase-js';
-import { Database, Loader2, AlertCircle, LogOut, LayoutDashboard, Filter, Calendar, Tag, Box, TrendingUp, Sparkles, Download, Table as TableIcon, Lock, Eye, EyeOff } from 'lucide-react';
-import { BarChart, Bar, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, LineChart, Line, ComposedChart } from 'recharts';
-import { format, isValid } from 'date-fns';
-import { AIAssistant } from './components/AIAssistant';
-
-
-function App() {
+function App(){
+import React, { useState, useMemo, useEffect } from 'react';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -17,6 +9,8 @@ function App() {
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
+
+import React, { useState, useMemo } from 'react';
 
 const [search, setSearch] = useState('');
 
@@ -30,10 +24,11 @@ useEffect(() => {
   return () => clearTimeout(t);
 }, [search]);
 
-
-
-
-
+import { createClient } from '@supabase/supabase-js';
+import { Database, Loader2, AlertCircle, LogOut, LayoutDashboard, Filter, Calendar, Tag, Box, TrendingUp, Sparkles, Download, Table as TableIcon, Lock, Eye, EyeOff } from 'lucide-react';
+import { BarChart, Bar, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, LineChart, Line, ComposedChart } from 'recharts';
+import { format, isValid } from 'date-fns';
+import { AIAssistant } from './components/AIAssistant';
 
 // Configurações do Supabase (Pré-configuradas)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -111,12 +106,7 @@ function Dashboard({ data }: { data: any[] }) {
   if (!data || data.length === 0) {
     
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
-
-  const getWindow = (days:number)=>{
+const getWindow = (days:number)=>{
     const d = new Date();
     d.setDate(d.getDate()-days);
     return d;
@@ -815,12 +805,7 @@ return (
 
   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
-
-  const getWindow = (days:number)=>{
+const getWindow = (days:number)=>{
     const d = new Date();
     d.setDate(d.getDate()-days);
     return d;
@@ -1074,12 +1059,7 @@ return (
 
               
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
-
-  const getWindow = (days:number)=>{
+const getWindow = (days:number)=>{
     const d = new Date();
     d.setDate(d.getDate()-days);
     return d;
@@ -1646,12 +1626,7 @@ return (
                   const active = selectedEfficiencyCampaigns.includes(value);
                   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
-
-  const getWindow = (days:number)=>{
+const getWindow = (days:number)=>{
     const d = new Date();
     d.setDate(d.getDate()-days);
     return d;
@@ -1875,12 +1850,7 @@ function LoginScreen({ onAuth }: { onAuth: () => void }) {
 
   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
-
-  const getWindow = (days:number)=>{
+const getWindow = (days:number)=>{
     const d = new Date();
     d.setDate(d.getDate()-days);
     return d;
@@ -2221,12 +2191,7 @@ export default function App() {
   if (isConnected) {
     
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
-
-  const getWindow = (days:number)=>{
+const getWindow = (days:number)=>{
     const d = new Date();
     d.setDate(d.getDate()-days);
     return d;
@@ -2485,12 +2450,7 @@ return (
 
   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
-
-  const getWindow = (days:number)=>{
+const getWindow = (days:number)=>{
     const d = new Date();
     d.setDate(d.getDate()-days);
     return d;
@@ -2687,12 +2647,7 @@ className="w-full px-4 py-2 rounded-xl border border-slate-300 focus:ring-2 focu
                   const isSelected = productFilter.includes(prod);
                   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
-
-  const getWindow = (days:number)=>{
+const getWindow = (days:number)=>{
     const d = new Date();
     d.setDate(d.getDate()-days);
     return d;
@@ -2899,6 +2854,6 @@ return (
 </div>
   );
 }
-}
 
+}
 export default App;

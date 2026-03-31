@@ -26,132 +26,13 @@ const [budget,setBudget]=useState(10000);
 
 const [debouncedSearch, setDebouncedSearch] = useState('');
 
-React.useEffect(() => {
+useEffect(() => {
   const t = setTimeout(() => setDebouncedSearch(search), 300);
-  
-
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
-
-  const getWindow = (days:number)=>{
-    const d = new Date();
-    d.setDate(d.getDate()-days);
-    return d;
-  };
-
-  const windows = [
-    {days:60, weight:1},
-    {days:30, weight:2},
-    {days:14, weight:1},
-    {days:7,  weight:1},
-  ];
-
-  const group:any = {};
-
-  preparedData.forEach((r:any)=>{
-    const camp = r.campaign_name || 'unknown';
-    const date = new Date(r.data);
-
-    if(!group[camp]) group[camp]={ windows:[], current:0 };
-
-    group[camp].current += r.investimento || 0;
-
-    windows.forEach(w=>{
-      if(date >= getWindow(w.days)){
-        if(!group[camp][w.days]) group[camp][w.days]={inv:0, mat:0};
-        group[camp][w.days].inv += r.investimento || 0;
-        group[camp][w.days].mat += r.matriculas || 0;
-      }
-    });
-  });
-
-  const rows = Object.entries(group).map(([camp,v]:any)=>{
-    let weighted=0;
-    let totalWeight=0;
-
-    windows.forEach(w=>{
-      const data = v[w.days];
-      if(data && data.mat>0){
-        const cac = data.inv / data.mat;
-        weighted += cac * w.weight;
-        totalWeight += w.weight;
-      }
-    });
-
-    const cac = totalWeight>0 ? weighted/totalWeight : null;
-    const score = cac ? 1/cac : 0;
-
-    return {
-      camp,
-      cac,
-      score,
-      current: v.current
-    };
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0) || 1;
-
-  let allocated = 0;
-
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-
-    suggested = Math.max(min, Math.min(max, suggested));
-
-    allocated += suggested;
-
-    const delta = r.current>0 ? ((suggested-r.current)/r.current)*100 : 0;
-
-    return {...r, suggested, delta};
-  });
-
-  const remaining = budget - allocated;
-
-  const message = remaining > 0 
-    ? `Só foi possível alocar R$ ${allocated.toFixed(0)} respeitando a regra de ±35%. Saldo restante: R$ ${remaining.toFixed(0)}`
-    : '';
-
-  return {rows:result, total:budget, allocated, message};
-
-},[preparedData,budget]);
-  const days=(d)=>new Date(now.getTime()-d*86400000);
-
-  const group={};
-  preparedData.forEach(r=>{
-    const camp=r.campaign_name||'unknown';
-    if(!group[camp]) group[camp]={inv:0, mat:0};
-    group[camp].inv += r.investimento||0;
-    group[camp].mat += r.matriculas||0;
-  });
-
-  const rows=Object.entries(group).map(([k,v]:any)=>{
-    const cac = v.mat>0? v.inv/v.mat : null;
-    const score = cac? 1/cac : 0;
-    return {camp:k, cac, score, current:v.inv};
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0)||1;
-
-  let allocated=0;
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-    suggested = Math.max(min, Math.min(max, suggested));
-    allocated+=suggested;
-    return {...r, suggested};
-  });
-
-  return {rows:result, total:budget, allocated};
-},[preparedData,budget]);
-
-return () => clearTimeout(t);
+  return () => clearTimeout(t);
 }, [search]);
+
+
+React.
 
 
 

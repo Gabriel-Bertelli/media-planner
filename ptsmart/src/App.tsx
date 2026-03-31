@@ -7,8 +7,8 @@ import { format, isValid } from 'date-fns';
 import { AIAssistant } from './components/AIAssistant';
 
 // Configurações do Supabase (Pré-configuradas)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 const DEFAULT_TABLE_NAME = 'base_data_tracker';
 
 const PRODUCT_OPTIONS = [
@@ -127,6 +127,25 @@ function Dashboard({ data }: { data: any[] }) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [budget, setBudget] = useState(10000);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'investment'>('dashboard');
+
+  // ── All hooks must come before any early return ────────────────────────────
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [datePreset, setDatePreset] = useState('custom');
+  const [timeGrouping, setTimeGrouping] = useState('daily');
+  const [comparePrevious, setComparePrevious] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState('all');
+  const [selectedProduct, setSelectedProduct] = useState('all');
+  const [selectedBarKpi, setSelectedBarKpi] = useState('');
+  const [selectedLineKpi, setSelectedLineKpi] = useState('');
+  const [compositionKpi, setCompositionKpi] = useState('');
+  const [compositionDimension, setCompositionDimension] = useState('tipo_campanha');
+  const [stackedKpi, setStackedKpi] = useState('');
+  const [stackedDimension, setStackedDimension] = useState('tipo_campanha');
+  const [stackedKpi2, setStackedKpi2] = useState('');
+  const [stackedDimension2, setStackedDimension2] = useState('tipo_campanha');
+  const [efficiencyMetric, setEfficiencyMetric] = useState('cac');
+  const [selectedEfficiencyCampaigns, setSelectedEfficiencyCampaigns] = useState<string[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -249,6 +268,29 @@ function Dashboard({ data }: { data: any[] }) {
     return { rows: result, total: budget, allocated, message };
   }, [preparedData, budget]);
 
+  // ── Derived field detection (safe: data may be empty) ─────────────────────
+  const keys = data.length > 0 ? Object.keys(data[0]) : [];
+  const dateField = keys.find(k => /data|date|created|time/i.test(k));
+  const campaignField = keys.includes('tipo_campanha') ? 'tipo_campanha' : keys.find(k => /campanha|campaign|tipo/i.test(k));
+  const productField = keys.includes('produto') ? 'produto' : keys.find(k => /produto|product/i.test(k));
+  const numericFields = keys.filter(k => typeof data[0]?.[k] === 'number' && !/id/i.test(k));
+
+  // Sync KPI selectors once numericFields are known
+  useEffect(() => {
+    if (numericFields.length > 0) {
+      setSelectedBarKpi(prev => prev || numericFields[0] || '');
+      setSelectedLineKpi(prev => prev || numericFields[1] || numericFields[0] || '');
+      setCompositionKpi(prev => prev || numericFields[0] || '');
+      setStackedKpi(prev => prev || numericFields[0] || '');
+      setStackedKpi2(prev => prev || numericFields[1] || numericFields[0] || '');
+    }
+  }, [numericFields.join(',')]);
+
+  // Extract unique values
+  const campaigns = campaignField ? Array.from(new Set(data.map(d => d[campaignField]))).filter(Boolean) : [];
+  const products = productField ? Array.from(new Set(data.map(d => d[productField]))).filter(Boolean) : [];
+
+  // ── Early return AFTER all hooks ──────────────────────────────────────────
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center text-slate-500">
@@ -258,46 +300,11 @@ function Dashboard({ data }: { data: any[] }) {
     );
   }
 
-  const keys = Object.keys(data[0]);
-
-  // Auto-detect fields
-  const dateField = keys.find(k => /data|date|created|time/i.test(k));
-  const campaignField = keys.includes('tipo_campanha') ? 'tipo_campanha' : keys.find(k => /campanha|campaign|tipo/i.test(k));
-  const productField = keys.includes('produto') ? 'produto' : keys.find(k => /produto|product/i.test(k));
-  const numericFields = keys.filter(k => typeof data[0][k] === 'number' && !/id/i.test(k));
-
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [datePreset, setDatePreset] = useState('custom');
-  const [timeGrouping, setTimeGrouping] = useState('daily');
-  const [comparePrevious, setComparePrevious] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState('all');
-  const [selectedProduct, setSelectedProduct] = useState('all');
-
-  const [selectedBarKpi, setSelectedBarKpi] = useState(numericFields[0] || '');
-  const [selectedLineKpi, setSelectedLineKpi] = useState(numericFields[1] || numericFields[0] || '');
-
-  const [compositionKpi, setCompositionKpi] = useState(numericFields[0] || '');
-  const [compositionDimension, setCompositionDimension] = useState('tipo_campanha');
-
-  const [stackedKpi, setStackedKpi] = useState(numericFields[0] || '');
-  const [stackedDimension, setStackedDimension] = useState('tipo_campanha');
-
-  const [stackedKpi2, setStackedKpi2] = useState(numericFields[1] || numericFields[0] || '');
-  const [stackedDimension2, setStackedDimension2] = useState('tipo_campanha');
-
-  const [efficiencyMetric, setEfficiencyMetric] = useState('cac');
-  const [selectedEfficiencyCampaigns, setSelectedEfficiencyCampaigns] = useState<string[]>([]);
-
-  // Extract unique values
-  const campaigns = campaignField ? Array.from(new Set(data.map(d => d[campaignField]))).filter(Boolean) : [];
-  const products = productField ? Array.from(new Set(data.map(d => d[productField]))).filter(Boolean) : [];
-
   React.useEffect(() => {
     if (selectedEfficiencyCampaigns.length === 0 && campaigns.length > 0) {
       setSelectedEfficiencyCampaigns(campaigns.slice(0, 3).map(String));
     }
-  }, [campaigns, selectedEfficiencyCampaigns.length]);
+  }, [campaigns.length, selectedEfficiencyCampaigns.length]);
 
   // Handle date presets
   React.useEffect(() => {
@@ -1534,16 +1541,18 @@ export default function App() {
   const [downloadProgress, setDownloadProgress] = useState(0);
 
   React.useEffect(() => {
-    const cached = localStorage.getItem('ptsmart_cache');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        setData(parsed);
-        setIsConnected(true);
-      } catch (e) {
-        console.error('Erro ao carregar cache');
+    try {
+      const cached = localStorage.getItem('ptsmart_cache');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          setData(parsed);
+          setIsConnected(true);
+        } catch (e) {
+          console.error('Erro ao carregar cache');
+        }
       }
-    }
+    } catch {}
   }, []);
 
   const handleConnect = async (e: React.FormEvent) => {
@@ -1623,7 +1632,7 @@ export default function App() {
         return out;
       });
       setData(coerced);
-      localStorage.setItem('ptsmart_cache', JSON.stringify(coerced));
+      try { localStorage.setItem('ptsmart_cache', JSON.stringify(coerced)); } catch {}
       setIsConnected(true);
     } catch (err: any) {
       let errorMessage = err.message || 'Erro ao conectar ou buscar dados. Verifique suas credenciais e o nome da tabela.';

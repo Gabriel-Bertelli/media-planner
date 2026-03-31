@@ -16,7 +16,92 @@ const [debouncedSearch, setDebouncedSearch] = useState('');
 
 useEffect(() => {
   const t = setTimeout(() => setDebouncedSearch(search), 300);
-  return () => clearTimeout(t);
+  
+const investmentSuggestion = useMemo(() => {
+  if (!preparedData?.length) return { rows: [], total: 0, allocated: 0, message: '' };
+
+  const getWindow = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d;
+  };
+
+  const windows = [
+    { days: 60, weight: 1 },
+    { days: 30, weight: 2 },
+    { days: 14, weight: 1 },
+    { days: 7, weight: 1 },
+  ];
+
+  const group: any = {};
+
+  preparedData.forEach((r: any) => {
+    const camp = r.campaign_name || 'unknown';
+    const date = new Date(r.data);
+
+    if (!group[camp]) group[camp] = { current: 0 };
+
+    group[camp].current += r.investimento || 0;
+
+    windows.forEach(w => {
+      if (date >= getWindow(w.days)) {
+        if (!group[camp][w.days]) group[camp][w.days] = { inv: 0, mat: 0 };
+        group[camp][w.days].inv += r.investimento || 0;
+        group[camp][w.days].mat += r.matriculas || 0;
+      }
+    });
+  });
+
+  const rows = Object.entries(group).map(([camp, v]: any) => {
+    let weighted = 0;
+    let totalWeight = 0;
+
+    windows.forEach(w => {
+      const data = v[w.days];
+      if (data && data.mat > 0) {
+        const cac = data.inv / data.mat;
+        weighted += cac * w.weight;
+        totalWeight += w.weight;
+      }
+    });
+
+    const cac = totalWeight > 0 ? weighted / totalWeight : null;
+    const score = cac ? 1 / cac : 0;
+
+    return { camp, cac, score, current: v.current };
+  });
+
+  const totalScore = rows.reduce((a, b) => a + b.score, 0) || 1;
+
+  let allocated = 0;
+
+  const result = rows.map(r => {
+    let suggested = (r.score / totalScore) * budget;
+
+    const min = r.current * 0.65;
+    const max = r.current * 1.35;
+
+    suggested = Math.max(min, Math.min(max, suggested));
+
+    allocated += suggested;
+
+    const delta = r.current > 0 ? ((suggested - r.current) / r.current) * 100 : 0;
+
+    return { ...r, suggested, delta };
+  });
+
+  const remaining = budget - allocated;
+
+  const message =
+    remaining > 0
+      ? `Só foi possível alocar R$ ${allocated.toFixed(0)} respeitando a regra de ±35%. Saldo restante: R$ ${remaining.toFixed(0)}`
+      : '';
+
+  return { rows: result, total: budget, allocated, message };
+}, [preparedData, budget]);
+
+
+return () => clearTimeout(t);
 }, [search]);
 
 
@@ -97,10 +182,6 @@ function Dashboard({ data }: { data: any[] }) {
   if (!data || data.length === 0) {
     
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
 
   const getWindow = (days:number)=>{
     const d = new Date();
@@ -186,37 +267,7 @@ const investmentSuggestion = useMemo(()=>{
   return {rows:result, total:budget, allocated, message};
 
 },[preparedData,budget]);
-  const days=(d)=>new Date(now.getTime()-d*86400000);
-
-  const group={};
-  preparedData.forEach(r=>{
-    const camp=r.campaign_name||'unknown';
-    if(!group[camp]) group[camp]={inv:0, mat:0};
-    group[camp].inv += r.investimento||0;
-    group[camp].mat += r.matriculas||0;
-  });
-
-  const rows=Object.entries(group).map(([k,v]:any)=>{
-    const cac = v.mat>0? v.inv/v.mat : null;
-    const score = cac? 1/cac : 0;
-    return {camp:k, cac, score, current:v.inv};
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0)||1;
-
-  let allocated=0;
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-    suggested = Math.max(min, Math.min(max, suggested));
-    allocated+=suggested;
-    return {...r, suggested};
-  });
-
-  return {rows:result, total:budget, allocated};
-},[preparedData,budget]);
-
+  
 return (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center text-slate-500">
         <LayoutDashboard className="w-12 h-12 mx-auto mb-3 opacity-20" />
@@ -801,10 +852,6 @@ return (
 
   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
 
   const getWindow = (days:number)=>{
     const d = new Date();
@@ -890,37 +937,7 @@ const investmentSuggestion = useMemo(()=>{
   return {rows:result, total:budget, allocated, message};
 
 },[preparedData,budget]);
-  const days=(d)=>new Date(now.getTime()-d*86400000);
-
-  const group={};
-  preparedData.forEach(r=>{
-    const camp=r.campaign_name||'unknown';
-    if(!group[camp]) group[camp]={inv:0, mat:0};
-    group[camp].inv += r.investimento||0;
-    group[camp].mat += r.matriculas||0;
-  });
-
-  const rows=Object.entries(group).map(([k,v]:any)=>{
-    const cac = v.mat>0? v.inv/v.mat : null;
-    const score = cac? 1/cac : 0;
-    return {camp:k, cac, score, current:v.inv};
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0)||1;
-
-  let allocated=0;
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-    suggested = Math.max(min, Math.min(max, suggested));
-    allocated+=suggested;
-    return {...r, suggested};
-  });
-
-  return {rows:result, total:budget, allocated};
-},[preparedData,budget]);
-
+  
 return (
     <div className="space-y-6">
       {/* Filters */}
@@ -1060,10 +1077,6 @@ return (
 
               
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
 
   const getWindow = (days:number)=>{
     const d = new Date();
@@ -1149,37 +1162,7 @@ const investmentSuggestion = useMemo(()=>{
   return {rows:result, total:budget, allocated, message};
 
 },[preparedData,budget]);
-  const days=(d)=>new Date(now.getTime()-d*86400000);
-
-  const group={};
-  preparedData.forEach(r=>{
-    const camp=r.campaign_name||'unknown';
-    if(!group[camp]) group[camp]={inv:0, mat:0};
-    group[camp].inv += r.investimento||0;
-    group[camp].mat += r.matriculas||0;
-  });
-
-  const rows=Object.entries(group).map(([k,v]:any)=>{
-    const cac = v.mat>0? v.inv/v.mat : null;
-    const score = cac? 1/cac : 0;
-    return {camp:k, cac, score, current:v.inv};
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0)||1;
-
-  let allocated=0;
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-    suggested = Math.max(min, Math.min(max, suggested));
-    allocated+=suggested;
-    return {...r, suggested};
-  });
-
-  return {rows:result, total:budget, allocated};
-},[preparedData,budget]);
-
+  
 return (
                 <div
                   key={kpi.label}
@@ -1632,10 +1615,6 @@ return (
                   const active = selectedEfficiencyCampaigns.includes(value);
                   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
 
   const getWindow = (days:number)=>{
     const d = new Date();
@@ -1721,37 +1700,7 @@ const investmentSuggestion = useMemo(()=>{
   return {rows:result, total:budget, allocated, message};
 
 },[preparedData,budget]);
-  const days=(d)=>new Date(now.getTime()-d*86400000);
-
-  const group={};
-  preparedData.forEach(r=>{
-    const camp=r.campaign_name||'unknown';
-    if(!group[camp]) group[camp]={inv:0, mat:0};
-    group[camp].inv += r.investimento||0;
-    group[camp].mat += r.matriculas||0;
-  });
-
-  const rows=Object.entries(group).map(([k,v]:any)=>{
-    const cac = v.mat>0? v.inv/v.mat : null;
-    const score = cac? 1/cac : 0;
-    return {camp:k, cac, score, current:v.inv};
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0)||1;
-
-  let allocated=0;
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-    suggested = Math.max(min, Math.min(max, suggested));
-    allocated+=suggested;
-    return {...r, suggested};
-  });
-
-  return {rows:result, total:budget, allocated};
-},[preparedData,budget]);
-
+  
 return (
                     <button
                       key={value}
@@ -1861,10 +1810,6 @@ function LoginScreen({ onAuth }: { onAuth: () => void }) {
 
   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
 
   const getWindow = (days:number)=>{
     const d = new Date();
@@ -1950,37 +1895,7 @@ const investmentSuggestion = useMemo(()=>{
   return {rows:result, total:budget, allocated, message};
 
 },[preparedData,budget]);
-  const days=(d)=>new Date(now.getTime()-d*86400000);
-
-  const group={};
-  preparedData.forEach(r=>{
-    const camp=r.campaign_name||'unknown';
-    if(!group[camp]) group[camp]={inv:0, mat:0};
-    group[camp].inv += r.investimento||0;
-    group[camp].mat += r.matriculas||0;
-  });
-
-  const rows=Object.entries(group).map(([k,v]:any)=>{
-    const cac = v.mat>0? v.inv/v.mat : null;
-    const score = cac? 1/cac : 0;
-    return {camp:k, cac, score, current:v.inv};
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0)||1;
-
-  let allocated=0;
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-    suggested = Math.max(min, Math.min(max, suggested));
-    allocated+=suggested;
-    return {...r, suggested};
-  });
-
-  return {rows:result, total:budget, allocated};
-},[preparedData,budget]);
-
+  
 return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
@@ -2207,10 +2122,6 @@ export default function App() {
   if (isConnected) {
     
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
 
   const getWindow = (days:number)=>{
     const d = new Date();
@@ -2296,37 +2207,7 @@ const investmentSuggestion = useMemo(()=>{
   return {rows:result, total:budget, allocated, message};
 
 },[preparedData,budget]);
-  const days=(d)=>new Date(now.getTime()-d*86400000);
-
-  const group={};
-  preparedData.forEach(r=>{
-    const camp=r.campaign_name||'unknown';
-    if(!group[camp]) group[camp]={inv:0, mat:0};
-    group[camp].inv += r.investimento||0;
-    group[camp].mat += r.matriculas||0;
-  });
-
-  const rows=Object.entries(group).map(([k,v]:any)=>{
-    const cac = v.mat>0? v.inv/v.mat : null;
-    const score = cac? 1/cac : 0;
-    return {camp:k, cac, score, current:v.inv};
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0)||1;
-
-  let allocated=0;
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-    suggested = Math.max(min, Math.min(max, suggested));
-    allocated+=suggested;
-    return {...r, suggested};
-  });
-
-  return {rows:result, total:budget, allocated};
-},[preparedData,budget]);
-
+  
 return (
       <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans text-slate-900">
         <div className="max-w-6xl mx-auto space-y-6">
@@ -2471,10 +2352,6 @@ return (
 
   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
 
   const getWindow = (days:number)=>{
     const d = new Date();
@@ -2560,37 +2437,7 @@ const investmentSuggestion = useMemo(()=>{
   return {rows:result, total:budget, allocated, message};
 
 },[preparedData,budget]);
-  const days=(d)=>new Date(now.getTime()-d*86400000);
-
-  const group={};
-  preparedData.forEach(r=>{
-    const camp=r.campaign_name||'unknown';
-    if(!group[camp]) group[camp]={inv:0, mat:0};
-    group[camp].inv += r.investimento||0;
-    group[camp].mat += r.matriculas||0;
-  });
-
-  const rows=Object.entries(group).map(([k,v]:any)=>{
-    const cac = v.mat>0? v.inv/v.mat : null;
-    const score = cac? 1/cac : 0;
-    return {camp:k, cac, score, current:v.inv};
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0)||1;
-
-  let allocated=0;
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-    suggested = Math.max(min, Math.min(max, suggested));
-    allocated+=suggested;
-    return {...r, suggested};
-  });
-
-  return {rows:result, total:budget, allocated};
-},[preparedData,budget]);
-
+  
 return (
     
 <div className="min-h-screen bg-slate-100 flex font-sans text-slate-900">
@@ -2673,10 +2520,6 @@ className="w-full px-4 py-2 rounded-xl border border-slate-300 focus:ring-2 focu
                   const isSelected = productFilter.includes(prod);
                   
 
-const investmentSuggestion = useMemo(()=>{
-  if(!preparedData?.length) return {rows:[], total:0, allocated:0, message:''};
-
-  const now = new Date();
 
   const getWindow = (days:number)=>{
     const d = new Date();
@@ -2762,37 +2605,7 @@ const investmentSuggestion = useMemo(()=>{
   return {rows:result, total:budget, allocated, message};
 
 },[preparedData,budget]);
-  const days=(d)=>new Date(now.getTime()-d*86400000);
-
-  const group={};
-  preparedData.forEach(r=>{
-    const camp=r.campaign_name||'unknown';
-    if(!group[camp]) group[camp]={inv:0, mat:0};
-    group[camp].inv += r.investimento||0;
-    group[camp].mat += r.matriculas||0;
-  });
-
-  const rows=Object.entries(group).map(([k,v]:any)=>{
-    const cac = v.mat>0? v.inv/v.mat : null;
-    const score = cac? 1/cac : 0;
-    return {camp:k, cac, score, current:v.inv};
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0)||1;
-
-  let allocated=0;
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-    suggested = Math.max(min, Math.min(max, suggested));
-    allocated+=suggested;
-    return {...r, suggested};
-  });
-
-  return {rows:result, total:budget, allocated};
-},[preparedData,budget]);
-
+  
 return (
                     <button
                       key={prod}

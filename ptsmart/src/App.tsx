@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 
 import { createClient } from '@supabase/supabase-js';
@@ -6,105 +5,6 @@ import { Database, Loader2, AlertCircle, LogOut, LayoutDashboard, Filter, Calend
 import { BarChart, Bar, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, LineChart, Line, ComposedChart } from 'recharts';
 import { format, isValid } from 'date-fns';
 import { AIAssistant } from './components/AIAssistant';
-
-function App(){
-
-const [search, setSearch] = useState('');
-const [activeTab,setActiveTab]=useState<'dashboard'|'investment'>('dashboard');
-const [budget,setBudget]=useState(10000);
-const [debouncedSearch, setDebouncedSearch] = useState('');
-
-useEffect(() => {
-  const t = setTimeout(() => setDebouncedSearch(search), 300);
-  
-const investmentSuggestion = useMemo(() => {
-  if (!preparedData?.length) 
-
-  const getWindow = (days:number)=>{
-    const d = new Date();
-    d.setDate(d.getDate()-days);
-    return d;
-  };
-
-  const windows = [
-    {days:60, weight:1},
-    {days:30, weight:2},
-    {days:14, weight:1},
-    {days:7, weight:1},
-  ];
-
-  const group:any = {};
-
-  preparedData.forEach((r:any)=>{
-    const camp = r.campaign_name || 'unknown';
-    const date = new Date(r.data);
-
-    if(!group[camp]) group[camp]={ current:0 };
-
-    group[camp].current += r.investimento || 0;
-
-    windows.forEach(w=>{
-      if(date >= getWindow(w.days)){
-        if(!group[camp][w.days]) group[camp][w.days]={inv:0, mat:0};
-        group[camp][w.days].inv += r.investimento || 0;
-        group[camp][w.days].mat += r.matriculas || 0;
-      }
-    });
-  });
-
-  const rows = Object.entries(group).map(([camp,v]:any)=>{
-    let weighted=0;
-    let totalWeight=0;
-
-    windows.forEach(w=>{
-      const data = v[w.days];
-      if(data && data.mat>0){
-        const cac = data.inv / data.mat;
-        weighted += cac * w.weight;
-        totalWeight += w.weight;
-      }
-    });
-
-    const cac = totalWeight>0 ? weighted/totalWeight : null;
-    const score = cac ? 1/cac : 0;
-
-    return { camp, cac, score, current: v.current };
-  });
-
-  const totalScore = rows.reduce((a,b)=>a+b.score,0) || 1;
-
-  let allocated = 0;
-
-  const result = rows.map(r=>{
-    let suggested = (r.score/totalScore)*budget;
-
-    const min = r.current*0.65;
-    const max = r.current*1.35;
-
-    suggested = Math.max(min, Math.min(max, suggested));
-
-    allocated += suggested;
-
-    const delta = r.current>0 ? ((suggested-r.current)/r.current)*100 : 0;
-
-    return {...r, suggested, delta};
-  });
-
-  const remaining = budget - allocated;
-
-  const message = remaining > 0 
-    ? `Só foi possível alocar R$ ${allocated.toFixed(0)} respeitando a regra de ±35%. Saldo restante: R$ ${remaining.toFixed(0)}`
-    : '';
-
-  
-
-},[preparedData,budget]);
-
-
-return () => clearTimeout(t);
-}, [search]);
-
-
 
 // Configurações do Supabase (Pré-configuradas)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -129,22 +29,110 @@ const parseLocalDate = (dateStr: string | number | Date) => {
   return new Date(`${str}T00:00:00`);
 };
 
+// ── Auth credentials (simple client-side gate) ────────────────────────────
+const AUTH_USER = 'performancemaisa';
+const AUTH_PASS = 'batermeta';
 
-  React.useEffect(() => {
-    const cached = localStorage.getItem('ptsmart_cache');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        setData(parsed);
-        setIsConnected(true);
-      } catch (e) {
-        console.error('Erro ao carregar cache');
+function LoginScreen({ onAuth }: { onAuth: () => void }) {
+  const [user, setUser]   = useState('');
+  const [pass, setPass]   = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [err, setErr]     = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => {
+      if (user === AUTH_USER && pass === AUTH_PASS) {
+        sessionStorage.setItem('ptsmart_auth', '1');
+        onAuth();
+      } else {
+        setErr('Login ou senha incorretos.');
+        setLoading(false);
       }
-    }
-  }, []);
+    }, 400);
+  };
 
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+        <div className="px-8 pt-8 pb-6">
+          <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
+            <Lock className="w-5 h-5" />
+          </div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 mb-1">PTSmart</h1>
+          <p className="text-sm text-slate-500 mb-7">Observabilidade de Mídias — acesso restrito.</p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-700">Login</label>
+              <input
+                type="text"
+                value={user}
+                onChange={e => { setUser(e.target.value); setErr(''); }}
+                autoComplete="username"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                placeholder="seu login"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-700">Senha</label>
+              <div className="relative">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={pass}
+                  onChange={e => { setPass(e.target.value); setErr(''); }}
+                  autoComplete="current-password"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all pr-10"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(v => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  tabIndex={-1}
+                >
+                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {err && (
+              <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-100 rounded-lg text-xs text-red-600">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {err}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 mt-2"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Entrar'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Dashboard({ data }: { data: any[] }) {
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [budget, setBudget] = useState(10000);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'investment'>('dashboard');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const filteredData = useMemo(() => {
     if (!debouncedSearch) return data;
     return data.filter(row =>
@@ -171,23 +159,98 @@ function Dashboard({ data }: { data: any[] }) {
   const stats = useMemo(() => {
     if (!preparedData.length) return {};
     const keys = Object.keys(preparedData[0]).filter(k => typeof preparedData[0][k] === 'number');
-    const result:any = {};
-    keys.forEach(k=>{
-      result[k] = preparedData.reduce((acc,cur)=> acc + (cur[k]||0),0);
+    const result: any = {};
+    keys.forEach(k => {
+      result[k] = preparedData.reduce((acc, cur) => acc + (cur[k] || 0), 0);
     });
     return result;
   }, [preparedData]);
 
+  const investmentSuggestion = useMemo(() => {
+    if (!preparedData?.length) return { rows: [], total: 0, allocated: 0, message: '' };
+
+    const getWindow = (days: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      return d;
+    };
+
+    const windows = [
+      { days: 60, weight: 1 },
+      { days: 30, weight: 2 },
+      { days: 14, weight: 1 },
+      { days: 7, weight: 1 },
+    ];
+
+    const group: any = {};
+
+    preparedData.forEach((r: any) => {
+      const camp = r.campaign_name || 'unknown';
+      const date = new Date(r.data);
+
+      if (!group[camp]) group[camp] = { current: 0 };
+
+      group[camp].current += r.investimento || 0;
+
+      windows.forEach(w => {
+        if (date >= getWindow(w.days)) {
+          if (!group[camp][w.days]) group[camp][w.days] = { inv: 0, mat: 0 };
+          group[camp][w.days].inv += r.investimento || 0;
+          group[camp][w.days].mat += r.matriculas || 0;
+        }
+      });
+    });
+
+    const rows = Object.entries(group).map(([camp, v]: any) => {
+      let weighted = 0;
+      let totalWeight = 0;
+
+      windows.forEach(w => {
+        const data = v[w.days];
+        if (data && data.mat > 0) {
+          const cac = data.inv / data.mat;
+          weighted += cac * w.weight;
+          totalWeight += w.weight;
+        }
+      });
+
+      const cac = totalWeight > 0 ? weighted / totalWeight : null;
+      const score = cac ? 1 / cac : 0;
+
+      return { camp, cac, score, current: v.current };
+    });
+
+    const totalScore = rows.reduce((a, b) => a + b.score, 0) || 1;
+
+    let allocated = 0;
+
+    const result = rows.map(r => {
+      let suggested = (r.score / totalScore) * budget;
+
+      const min = r.current * 0.65;
+      const max = r.current * 1.35;
+
+      suggested = Math.max(min, Math.min(max, suggested));
+
+      allocated += suggested;
+
+      const delta = r.current > 0 ? ((suggested - r.current) / r.current) * 100 : 0;
+
+      return { ...r, suggested, delta };
+    });
+
+    const remaining = budget - allocated;
+
+    const message =
+      remaining > 0
+        ? `Só foi possível alocar R$ ${allocated.toFixed(0)} respeitando a regra de ±35%. Saldo restante: R$ ${remaining.toFixed(0)}`
+        : '';
+
+    return { rows: result, total: budget, allocated, message };
+  }, [preparedData, budget]);
 
   if (!data || data.length === 0) {
-    
-
-
-  
-
-},[preparedData,budget]);
-  
-return (
+    return (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center text-slate-500">
         <LayoutDashboard className="w-12 h-12 mx-auto mb-3 opacity-20" />
         <p>Nenhum dado disponível para gerar relatórios.</p>
@@ -263,7 +326,7 @@ return (
   }, [datePreset, data, dateField]);
 
   // Filter data
-  const { filteredData, previousFilteredData, prevStartDate, prevEndDate } = useMemo(() => {
+  const { filteredData: dashFilteredData, previousFilteredData, prevStartDate, prevEndDate } = useMemo(() => {
     const current: any[] = [];
     const previous: any[] = [];
 
@@ -503,9 +566,9 @@ return (
 
   // Aggregate by date
   const aggregatedData = useMemo(() => {
-    if (!dateField) return filteredData;
-    return groupData(filteredData, timeGrouping, startDate, endDate);
-  }, [filteredData, dateField, numericFields, invField, mqlField, ticketField, matField, timeGrouping, startDate, endDate]);
+    if (!dateField) return dashFilteredData;
+    return groupData(dashFilteredData, timeGrouping, startDate, endDate);
+  }, [dashFilteredData, dateField, numericFields, invField, mqlField, ticketField, matField, timeGrouping, startDate, endDate]);
 
   const previousAggregatedData = useMemo(() => {
     if (!dateField || !comparePrevious) return [];
@@ -555,7 +618,7 @@ return (
 
     const dimCol = getDimensionColumn(compositionDimension, compositionKpi);
 
-    const grouped = filteredData.reduce((acc, curr) => {
+    const grouped = dashFilteredData.reduce((acc, curr) => {
       const key = String(curr[dimCol] || 'Não Informado');
       if (!acc[key]) {
         acc[key] = { name: key, value: 0 };
@@ -571,14 +634,14 @@ return (
       ...item,
       label: `${new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(item.value)} (${totalValue > 0 ? ((item.value / totalValue) * 100).toFixed(1) : 0}%)`
     }));
-  }, [filteredData, compositionKpi, compositionDimension]);
+  }, [dashFilteredData, compositionKpi, compositionDimension]);
 
   const buildStackedData = (kpi: string, dimension: string) => {
     if (!dateField || !kpi || !dimension) return [];
 
     const dimCol = getDimensionColumn(dimension, kpi);
 
-    const grouped = filteredData.reduce((acc, curr) => {
+    const grouped = dashFilteredData.reduce((acc, curr) => {
       let dateKey = String(curr[dateField]);
       try {
         const d = parseLocalDate(dateKey);
@@ -612,8 +675,8 @@ return (
     return Object.values(grouped).sort((a: any, b: any) => a[dateField].localeCompare(b[dateField]));
   };
 
-  const stackedData = useMemo(() => buildStackedData(stackedKpi, stackedDimension), [filteredData, dateField, stackedKpi, stackedDimension, timeGrouping]);
-  const stackedData2 = useMemo(() => buildStackedData(stackedKpi2, stackedDimension2), [filteredData, dateField, stackedKpi2, stackedDimension2, timeGrouping]);
+  const stackedData = useMemo(() => buildStackedData(stackedKpi, stackedDimension), [dashFilteredData, dateField, stackedKpi, stackedDimension, timeGrouping]);
+  const stackedData2 = useMemo(() => buildStackedData(stackedKpi2, stackedDimension2), [dashFilteredData, dateField, stackedKpi2, stackedDimension2, timeGrouping]);
 
   const getStackedKeys = (rows: any[]) => {
     const keySet = new Set<string>();
@@ -631,7 +694,7 @@ return (
   const efficiencyByCampaignData = useMemo(() => {
     if (!dateField || !campaignField || selectedEfficiencyCampaigns.length === 0) return [];
 
-    const grouped = filteredData.reduce((acc, curr) => {
+    const grouped = dashFilteredData.reduce((acc, curr) => {
       const campaign = String(curr[campaignField] || 'Não Informado');
       if (!selectedEfficiencyCampaigns.includes(campaign)) return acc;
 
@@ -695,7 +758,7 @@ return (
 
       return output;
     });
-  }, [filteredData, dateField, campaignField, selectedEfficiencyCampaigns, efficiencyMetric, timeGrouping, invField, mqlField, ticketField, matField]);
+  }, [dashFilteredData, dateField, campaignField, selectedEfficiencyCampaigns, efficiencyMetric, timeGrouping, invField, mqlField, ticketField, matField]);
 
   const STACK_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b', '#84cc16', '#14b8a6'];
   const LINE_COLORS = ['#0f5aa6', '#ff0000', '#f4b400', '#10b981', '#8b5cf6', '#06b6d4', '#ef4444', '#64748b'];
@@ -704,13 +767,13 @@ return (
   const totals = useMemo(() => {
     const t: Record<string, number> = {};
     numericFields.forEach(f => t[f] = 0);
-    filteredData.forEach(d => {
+    dashFilteredData.forEach(d => {
       numericFields.forEach(f => {
         t[f] += (Number(d[f]) || 0);
       });
     });
     return t;
-  }, [filteredData, numericFields]);
+  }, [dashFilteredData, numericFields]);
 
   const previousTotals = useMemo(() => {
     const t: Record<string, number> = {};
@@ -769,14 +832,7 @@ return (
     );
   };
 
-  
-
-
-  
-
-},[preparedData,budget]);
-  
-return (
+  return (
     <div className="space-y-6">
       {/* Filters */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -913,14 +969,7 @@ return (
                 );
               }
 
-              
-
-
-  
-
-},[preparedData,budget]);
-  
-return (
+              return (
                 <div
                   key={kpi.label}
                   onClick={() => isClickable && setSelectedBarKpi(kpi.id)}
@@ -1014,43 +1063,17 @@ return (
                       labelStyle={{ color: '#64748b', marginBottom: '4px' }}
                     />
                     <Legend
-                      formatter={(value) => {
-                        if (value === 'barValue') return getDisplayKpiName(selectedBarKpi);
-                        if (value === 'lineValue') return getDisplayKpiName(selectedLineKpi);
-                        return value;
-                      }}
+                      formatter={(value) => value === 'barValue' ? getDisplayKpiName(selectedBarKpi) : getDisplayKpiName(selectedLineKpi)}
+                      wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }}
                     />
-                    <Bar
-                      yAxisId="left"
-                      dataKey={`current_${selectedBarKpi}`}
-                      name="barValue"
-                      fill="#3e668f"
-                      radius={[4, 4, 0, 0]}
-                    >
-                      <LabelList
-                        dataKey={`current_${selectedBarKpi}`}
-                        position="top"
-                        formatter={(value: number) => formatMetricValue(selectedBarKpi, value, { compact: true })}
-                        style={{ fill: '#1e293b', fontSize: 11, fontWeight: 600 }}
-                      />
-                    </Bar>
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey={`current_${selectedLineKpi}`}
-                      name="lineValue"
-                      stroke="#e97817"
-                      strokeWidth={3}
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
-                    >
-                      <LabelList
-                        dataKey={`current_${selectedLineKpi}`}
-                        position="top"
-                        formatter={(value: number) => formatMetricValue(selectedLineKpi, value, { compact: false })}
-                        style={{ fill: '#e97817', fontSize: 11, fontWeight: 700 }}
-                      />
-                    </Line>
+                    <Bar yAxisId="left" dataKey={`current_${selectedBarKpi}`} name="barValue" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={40} />
+                    {comparePrevious && (
+                      <Bar yAxisId="left" dataKey={`previous_${selectedBarKpi}`} name="barPrevValue" fill="#10b98140" radius={[3, 3, 0, 0]} maxBarSize={40} />
+                    )}
+                    <Line yAxisId="right" type="monotone" dataKey={`current_${selectedLineKpi}`} name="lineValue" stroke="#f59e0b" strokeWidth={2.5} dot={false} />
+                    {comparePrevious && (
+                      <Line yAxisId="right" type="monotone" dataKey={`previous_${selectedLineKpi}`} name="linePrevValue" stroke="#f59e0b40" strokeWidth={2} dot={false} strokeDasharray="4 4" />
+                    )}
                   </ComposedChart>
                 </ResponsiveContainer>
               ) : (
@@ -1061,12 +1084,12 @@ return (
             </div>
           </div>
 
-          {/* Composition Chart */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mt-6">
+          {/* Composition chart */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                <Box className="w-5 h-5 text-emerald-600" />
-                Composição: <span className="capitalize text-emerald-600">{getDisplayKpiName(compositionKpi)}</span> por <span className="capitalize text-emerald-600">{compositionDimension.replace('_', ' ')}</span>
+                <TrendingUp className="w-5 h-5 text-emerald-600" />
+                Composição: <span className="text-emerald-600">{getDisplayKpiName(compositionKpi)}</span> por <span className="capitalize text-emerald-600">{compositionDimension.replace('_', ' ')}</span>
               </h3>
 
               <div className="flex items-center gap-3">
@@ -1086,39 +1109,38 @@ return (
                   onChange={e => setCompositionKpi(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 >
-                  {chartableKpis.map(f => <option key={f} value={f}>{getDisplayKpiName(f)}</option>)}
+                  {numericFields.map(f => <option key={f} value={f}>{getDisplayKpiName(f)}</option>)}
                 </select>
               </div>
             </div>
 
-            <div className="h-[400px] w-full">
+            <div className="h-[350px] w-full">
               {compositionData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={compositionData} margin={{ top: 10, right: 10, left: 0, bottom: 40 }}>
+                  <BarChart data={compositionData} layout="vertical" margin={{ top: 5, right: 80, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis
+                      type="number"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#64748b', fontSize: 11 }}
+                      tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(val)}
+                    />
+                    <YAxis
+                      type="category"
                       dataKey="name"
                       axisLine={false}
                       tickLine={false}
                       tick={{ fill: '#64748b', fontSize: 11 }}
-                      dy={10}
-                      angle={-45}
-                      textAnchor="end"
-                      height={60}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: '#64748b', fontSize: 12 }}
-                      tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(val)}
+                      width={120}
                     />
                     <Tooltip
                       contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                       formatter={(value: number) => [formatMetricValue(compositionKpi, value), getDisplayKpiName(compositionKpi)]}
                       labelStyle={{ color: '#64748b', marginBottom: '4px' }}
                     />
-                    <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]}>
-                      <LabelList dataKey="label" position="top" style={{ fill: '#64748b', fontSize: 11 }} />
+                    <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]}>
+                      <LabelList dataKey="label" position="right" style={{ fill: '#64748b', fontSize: 11 }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -1370,19 +1392,12 @@ return (
                 {campaigns.map(c => {
                   const value = String(c);
                   const active = selectedEfficiencyCampaigns.includes(value);
-                  
-
-
-  
-
-},[preparedData,budget]);
-  
-return (
+                  return (
                     <button
                       key={value}
                       type="button"
                       onClick={() => toggleEfficiencyCampaign(value)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors border ${
                         active
                           ? 'bg-emerald-100 border-emerald-200 text-emerald-800'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -1451,113 +1466,50 @@ return (
               )}
             </div>
           </div>
+
+          {/* Investment Suggestion Tab */}
+          {activeTab === 'investment' && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mt-6">
+              <h2 className="text-xl font-semibold mb-4">Sugestão de Investimento</h2>
+              <input
+                type="number"
+                value={budget}
+                onChange={(e) => setBudget(Number(e.target.value))}
+                className="border border-slate-300 rounded-lg p-2 mb-4 text-sm"
+              />
+              <table className="w-full text-sm bg-white">
+                <thead>
+                  <tr className="text-left text-slate-600 border-b border-slate-200">
+                    <th className="pb-2">Campanha</th>
+                    <th className="pb-2">CAC</th>
+                    <th className="pb-2">Atual</th>
+                    <th className="pb-2">Sugerido</th>
+                    <th className="pb-2">Δ%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {investmentSuggestion.rows.map((r: any, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="py-2">{r.camp}</td>
+                      <td className="py-2">{r.cac?.toFixed(2)}</td>
+                      <td className="py-2">{r.current.toFixed(0)}</td>
+                      <td className="py-2">{r.suggested.toFixed(0)}</td>
+                      <td className="py-2">{r.delta.toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {investmentSuggestion.message && (
+                <p className="mt-3 text-sm text-amber-600">{investmentSuggestion.message}</p>
+              )}
+              <p className="mt-2 text-sm text-slate-500">
+                Alocado: {investmentSuggestion.allocated.toFixed(0)} / {budget}
+              </p>
+            </div>
+          )}
         </>
       )}
-    
-  </main>
-</div>
-  );
-}
-
-// ── Auth credentials (simple client-side gate) ────────────────────────────
-const AUTH_USER = 'performancemaisa';
-const AUTH_PASS = 'batermeta';
-
-function LoginScreen({ onAuth }: { onAuth: () => void }) {
-  const [user, setUser]   = useState('');
-  const [pass, setPass]   = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [err, setErr]     = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      if (user === AUTH_USER && pass === AUTH_PASS) {
-        sessionStorage.setItem('ptsmart_auth', '1');
-        onAuth();
-      } else {
-        setErr('Login ou senha incorretos.');
-        setLoading(false);
-      }
-    }, 400);
-  };
-
-  
-
-
-  
-
-},[preparedData,budget]);
-  
-return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-        <div className="px-8 pt-8 pb-6">
-          <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
-            <Lock className="w-5 h-5" />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 mb-1">PTSmart</h1>
-          <p className="text-sm text-slate-500 mb-7">Observabilidade de Mídias — acesso restrito.</p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-700">Login</label>
-              <input
-                type="text"
-                value={user}
-                onChange={e => { setUser(e.target.value); setErr(''); }}
-                autoComplete="username"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                placeholder="seu login"
-                required
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-700">Senha</label>
-              <div className="relative">
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  value={pass}
-                  onChange={e => { setPass(e.target.value); setErr(''); }}
-                  autoComplete="current-password"
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all pr-10"
-                  placeholder="••••••••"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(v => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  tabIndex={-1}
-                >
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {err && (
-              <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-100 rounded-lg text-xs text-red-600">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {err}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 mt-2"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Entrar'}
-            </button>
-          </form>
-        </div>
-      </div>
-    
-  </main>
-</div>
+    </div>
   );
 }
 
@@ -1569,17 +1521,30 @@ export default function App() {
   const [error, setError] = useState('');
   const [view, setView] = useState<'table' | 'dashboard' | 'ai'>('dashboard');
   const [tableName, setTableName] = useState(DEFAULT_TABLE_NAME);
-  
+
   // Advanced filters
-  const [dateColumn, setDateColumn] = useState('data');
+  const [dateColumn] = useState('data');
   const [startDateFilter, setStartDateFilter] = useState('2026-01-01');
   const [endDateFilter, setEndDateFilter] = useState('2026-12-31');
   const [orderByColumn, setOrderByColumn] = useState('data');
   const [orderDirection, setOrderDirection] = useState<'desc' | 'asc'>('desc');
-  const [productColumn, setProductColumn] = useState('produto');
+  const [productColumn] = useState('produto');
   const [productFilter, setProductFilter] = useState<string[]>([]);
   const [maxRows, setMaxRows] = useState(50000);
   const [downloadProgress, setDownloadProgress] = useState(0);
+
+  React.useEffect(() => {
+    const cached = localStorage.getItem('ptsmart_cache');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        setData(parsed);
+        setIsConnected(true);
+      } catch (e) {
+        console.error('Erro ao carregar cache');
+      }
+    }
+  }, []);
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1596,10 +1561,9 @@ export default function App() {
       }
 
       const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      
+
       let allData: any[] = [];
       let hasMore = true;
-      let page = 0;
       const CHUNK_SIZE = 15000;
       let from = 0;
       let to = CHUNK_SIZE - 1;
@@ -1613,11 +1577,11 @@ export default function App() {
         if (dateColumn && endDateFilter) {
           query = query.lte(dateColumn, `${endDateFilter}T23:59:59`);
         }
-        
+
         if (productColumn && productFilter.length > 0) {
           query = query.in(productColumn, productFilter);
         }
-        
+
         if (orderByColumn) {
           query = query.order(orderByColumn, { ascending: orderDirection === 'asc' });
         }
@@ -1643,10 +1607,8 @@ export default function App() {
         }
       }
 
-      // Coerce numeric strings to numbers on load.
-      // Skip date fields, ID fields, name/text fields, and values that look like dates.
       const DATE_LIKE = /^\d{4}-\d{2}/;
-      const SKIP_KEY  = /data|date|time|created|updated|name|nome|campanha|curso|produto|platform|tipo|campaign/i;
+      const SKIP_KEY = /data|date|time|created|updated|name|nome|campanha|curso|produto|platform|tipo|campaign/i;
       const coerced = allData.slice(0, maxRows).map((row: any) => {
         const out: any = { ...row };
         for (const k of Object.keys(out)) {
@@ -1665,8 +1627,7 @@ export default function App() {
       setIsConnected(true);
     } catch (err: any) {
       let errorMessage = err.message || 'Erro ao conectar ou buscar dados. Verifique suas credenciais e o nome da tabela.';
-      
-      // Handle specific Supabase errors
+
       if (errorMessage.includes('schema cache') || errorMessage.includes('Could not find the table') || errorMessage.includes('relation') || errorMessage.includes('does not exist')) {
         errorMessage = `A tabela "${tableName}" não foi encontrada. Verifique se: 1) O nome está correto (letras maiúsculas/minúsculas importam). 2) A tabela está no schema "public". 3) Se você acabou de criá-la, recarregue o "schema cache" no painel do Supabase (Settings > API).`;
       }
@@ -1685,11 +1646,11 @@ export default function App() {
 
   const handleDownloadCSV = () => {
     if (data.length === 0) return;
-    
+
     const headers = Object.keys(data[0]);
     const csvContent = [
       headers.join(','),
-      ...data.map(row => 
+      ...data.map(row =>
         headers.map(header => {
           const val = row[header];
           if (val === null || val === undefined) return '""';
@@ -1715,14 +1676,7 @@ export default function App() {
   }
 
   if (isConnected) {
-    
-
-
-  
-
-},[preparedData,budget]);
-  
-return (
+    return (
       <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans text-slate-900">
         <div className="max-w-6xl mx-auto space-y-6">
           <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -1745,22 +1699,22 @@ return (
           </header>
 
           <div className="flex gap-6 border-b border-slate-200">
-            <button 
-              onClick={() => setView('dashboard')} 
+            <button
+              onClick={() => setView('dashboard')}
               className={`pb-3 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${view === 'dashboard' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
               <LayoutDashboard className="w-4 h-4" />
               Relatórios
             </button>
-            <button 
-              onClick={() => setView('table')} 
+            <button
+              onClick={() => setView('table')}
               className={`pb-3 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${view === 'table' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
               <TableIcon className="w-4 h-4" />
               Tabela de Dados
             </button>
-            <button 
-              onClick={() => setView('ai')} 
+            <button
+              onClick={() => setView('ai')}
               className={`pb-3 px-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${view === 'ai' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
               <Sparkles className="w-4 h-4" />
@@ -1773,7 +1727,7 @@ return (
           ) : view === 'ai' ? (
             <AIAssistant data={data} />
           ) : (
-            <main className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50/50">
                 <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                   <TableIcon className="w-4 h-4 text-emerald-600" />
@@ -1788,45 +1742,14 @@ return (
                   Baixar CSV
                 </button>
               </div>
-              
-{activeTab==='investment' && (
-<div>
-  <h2 className="text-xl font-semibold mb-4">Sugestão de Investimento</h2>
-  <input type="number" value={budget} onChange={(e)=>setBudget(Number(e.target.value))} className="border p-2 mb-4"/>
-  <table className="w-full text-sm bg-white">
-    <thead><tr><th>Campanha</th><th>CAC</th><th>Atual</th><th>Sugerido</th><th>Δ%</th></tr></thead>
-    <tbody>
-      {investmentSuggestion.rows.map((r:any,i)=>(
-        <tr key={i}>
-          <td>{r.camp}</td>
-          <td>{r.cac?.toFixed(2)}</td>
-          <td>{r.current.toFixed(0)}</td>
-          <td>{r.suggested.toFixed(0)}</td><td>{r.delta.toFixed(1)}%</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>{investmentSuggestion.message && (<p className='mt-3 text-sm text-amber-600'>{investmentSuggestion.message}</p>)}
-  <p className="mt-2 text-sm">Alocado: {investmentSuggestion.allocated.toFixed(0)} / {budget}</p>
-</div>
-)}
 
-{activeTab==='dashboard' && (
+              {data.length === 0 ? (
                 <div className="p-12 text-center text-slate-500">
                   <TableIcon className="w-12 h-12 mx-auto mb-3 opacity-20" />
                   <p>Nenhum dado encontrado na tabela.</p>
                 </div>
               ) : (
-                
-<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-  {Object.entries(stats).slice(0,4).map(([k,v])=>(
-    <div key={k} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-      <p className="text-xs text-slate-500">{k}</p>
-      <p className="text-lg font-semibold">{Number(v).toLocaleString()}</p>
-    </div>
-  ))}
-</div>
-
-<div className="overflow-x-auto">
+                <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm bg-white rounded-xl overflow-hidden">
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium">
                       <tr>
@@ -1838,78 +1761,42 @@ return (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {preparedData.slice(0,100).map((row, i) => (
+                      {data.slice(0, 100).map((row, i) => (
                         <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                           {Object.values(row).map((val: any, j) => (
                             <td key={j} className="px-6 py-4 whitespace-nowrap text-slate-700">
-                              {typeof val === 'object' && val !== null 
-                                ? JSON.stringify(val) 
+                              {typeof val === 'object' && val !== null
+                                ? JSON.stringify(val)
                                 : String(val)}
                             </td>
                           ))}
                         </tr>
                       ))}
                     </tbody>
-                  </table>{investmentSuggestion.message && (<p className='mt-3 text-sm text-amber-600'>{investmentSuggestion.message}</p>)}
+                  </table>
                 </div>
               )}
               <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-xs text-slate-500 flex justify-between">
                 <span>Mostrando até {data.length} registros</span>
                 <span>Total: {data.length}</span>
               </div>
-            </main>
+            </div>
           )}
         </div>
       </div>
     );
   }
 
-  
-
-
-  
-
-},[preparedData,budget]);
-  
-return (
-    
-<div className="min-h-screen bg-slate-100 flex font-sans text-slate-900">
-  <aside className="w-64 bg-white border-r border-slate-200 p-4 flex flex-col gap-4">
-    <h2 className="text-lg font-semibold">PTSmart</h2>
-    <button className="px-3 py-2 rounded-lg bg-emerald-500 text-white text-sm">Sincronizar</button>
-    <div className="text-xs text-slate-500">
-    <div>
-      <input 
-        placeholder="Buscar..."
-        value={search}
-        onChange={(e)=>setSearch(e.target.value)}
-        className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
-      />
-    </div>
-</div>
-  </aside>
-  <main className="flex-1 p-6 overflow-auto">
-<div className="flex gap-2 mb-4">
-<button onClick={()=>setActiveTab('dashboard')} className="px-3 py-1 rounded bg-slate-200">Dashboard</button>
-<button onClick={()=>setActiveTab('investment')} className="px-3 py-1 rounded bg-slate-200">Sugestão</button>
-</div>
-
-
+  // Not connected — show connection form
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
       <div className="w-full max-w-md bg-white rounded-xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
         <div className="p-8">
           <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
             <Filter className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight mb-2">Carregar Dados</h1>
-          <div className="mb-4">
-<input 
-placeholder="Buscar..." 
-value={search}
-onChange={(e)=>setSearch(e.target.value)}
-className="w-full px-4 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none"
-/>
-</div>
-<p className="text-slate-500 text-sm mb-8">
+          <p className="text-slate-500 text-sm mb-8">
             Selecione os filtros abaixo para baixar os dados do Supabase.
           </p>
 
@@ -1951,27 +1838,20 @@ className="w-full px-4 py-2 rounded-xl border border-slate-300 focus:ring-2 focu
               <div className="flex flex-wrap gap-2">
                 {PRODUCT_OPTIONS.map(prod => {
                   const isSelected = productFilter.includes(prod);
-                  
-
-
-  
-
-},[preparedData,budget]);
-  
-return (
+                  return (
                     <button
                       key={prod}
                       type="button"
                       onClick={() => {
-                        setProductFilter(prev => 
-                          prev.includes(prod) 
+                        setProductFilter(prev =>
+                          prev.includes(prod)
                             ? prev.filter(p => p !== prod)
                             : [...prev, prod]
                         );
                       }}
                       className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors border ${
-                        isSelected 
-                          ? 'bg-emerald-100 border-emerald-200 text-emerald-800' 
+                        isSelected
+                          ? 'bg-emerald-100 border-emerald-200 text-emerald-800'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                       }`}
                     >
@@ -2045,11 +1925,6 @@ return (
           </form>
         </div>
       </div>
-    
-  </main>
-</div>
+    </div>
   );
 }
-}
-
-export default App;

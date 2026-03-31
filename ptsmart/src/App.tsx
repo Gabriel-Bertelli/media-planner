@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 import { createClient } from '@supabase/supabase-js';
 import { Database, Loader2, AlertCircle, LogOut, LayoutDashboard, Filter, Calendar, Tag, Box, TrendingUp, Sparkles, Download, Table as TableIcon, Lock, Eye, EyeOff } from 'lucide-react';
@@ -8,34 +8,16 @@ import { format, isValid } from 'date-fns';
 import { AIAssistant } from './components/AIAssistant';
 
 function App(){
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 
 const [search, setSearch] = useState('');
-
 const [activeTab,setActiveTab]=useState<'dashboard'|'investment'>('dashboard');
 const [budget,setBudget]=useState(10000);
-
 const [debouncedSearch, setDebouncedSearch] = useState('');
 
 useEffect(() => {
   const t = setTimeout(() => setDebouncedSearch(search), 300);
   return () => clearTimeout(t);
 }, [search]);
-
-
-React.
-
-
-
 
 
 
